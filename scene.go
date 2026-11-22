@@ -38,6 +38,9 @@ type host interface {
 	// and a picker that allowed several would hand back a list the code then
 	// took the first of, in silence.
 	OpenMany(func([]chosen))
+	// OpenCapped asks for one file of at most max bytes. A larger one is
+	// refused BEFORE it is read: done is called with tooLarge set and no data.
+	OpenCapped(max int, done func(name string, data []byte, tooLarge bool))
 	// Save hands a file to the person under the given name.
 	Save(name string, data []byte)
 	// SystemDark says whether the page is being shown in a dark colour scheme,
@@ -190,6 +193,11 @@ type state struct {
 	// back is how the workbench draws it, so protecting a file would
 	// otherwise put a message where the page was.
 	reopenPw string
+	// p12 and p12Name are the certificate file chosen for a digital signature.
+	// ⛔ Held only until the next attempt to sign ends (wipeSecrets); never
+	// written anywhere, never read by any other verb.
+	p12     []byte
+	p12Name string
 	// form is what the document asks to be filled in, when it asks anything,
 	// and showingForm says the panel is up instead of the page.
 	form        *filling

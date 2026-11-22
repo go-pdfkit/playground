@@ -117,7 +117,15 @@ What each tab commands, and what its panel holds:
 - **Sign** — a box to **draw your signature** in with the mouse, a pen or a
   finger, with **Undo a stroke** and **Clear the box**, and **Place my
   signature** to put it on the pages named beside it, at the place and width
-  chosen. It is a picture of your hand, not a digital signature.
+  chosen. It is a picture of your hand, not a digital signature. The
+  **Certificate** group is the cryptographic kind: **Choose a certificate**
+  takes a `.p12` or `.pfx` file (refused above 8 MiB before it is read), the
+  password and an optional reason and location are typed beside it, and
+  **Sign and download** signs the document as it stands and downloads
+  `<name>_signed.pdf`. ⛔ Signing is the last step: the signed bytes are never
+  reopened here, so editing on gives an unsigned document. The file and the
+  password stay in this tab, are never stored or logged, and are let go after
+  every attempt, successful or not.
 - **File** — sanitize, flatten the annotations in, drop the annotations or what
   the file says about itself, pack it smaller, give it a title, an author, a
   subject, keywords, a creator and a producer, and **show** what it already says: every entry of its

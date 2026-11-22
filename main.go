@@ -130,6 +130,39 @@ func (browser) OpenMany(done func([]chosen)) {
 	input.Call("click")
 }
 
+// OpenCapped shows the certificate picker and calls back with the file, unless
+// it is larger than max: its SIZE is read first, from the File object, and a
+// larger one is never read at all — the callback gets tooLarge and no bytes.
+func (browser) OpenCapped(max int, done func(name string, data []byte, tooLarge bool)) {
+	input := js.Global().Get("document").Call("getElementById", "p12")
+	if input.IsNull() || input.IsUndefined() {
+		return
+	}
+	var onChange js.Func
+	onChange = js.FuncOf(func(this js.Value, _ []js.Value) any {
+		files := input.Get("files")
+		if files.Length() == 0 {
+			return nil
+		}
+		file := files.Index(0)
+		name := file.Get("name").String()
+		if file.Get("size").Float() > float64(max) {
+			input.Set("value", "")
+			done(name, nil, true)
+			onChange.Release()
+			return nil
+		}
+		read(file, func(data []byte) {
+			input.Set("value", "")
+			done(name, data, false)
+		})
+		onChange.Release()
+		return nil
+	})
+	input.Call("addEventListener", "change", onChange, map[string]any{"once": true})
+	input.Call("click")
+}
+
 // read pulls the bytes out of a File, which the browser only hands over
 // through a promise.
 func read(file js.Value, done func([]byte)) {

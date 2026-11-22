@@ -55,6 +55,7 @@ func (s *state) signGroup() *column {
 		s.chooseRow("Where it goes", placeNames(), s.tools.at),
 		s.spinRow("Signature width", 12, s.tools.wide),
 	), labelledH())
+	s.signGroupCert(box)
 	return box
 }
 
