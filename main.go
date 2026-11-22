@@ -63,6 +63,8 @@ func (browser) Open(done func(name string, data []byte)) {
 	}
 	var onChange js.Func
 	onChange = js.FuncOf(func(this js.Value, _ []js.Value) any {
+		delete(pending, "file")
+		defer onChange.Release()
 		files := input.Get("files")
 		if files.Length() == 0 {
 			return nil
@@ -75,10 +77,9 @@ func (browser) Open(done func(name string, data []byte)) {
 			input.Set("value", "")
 			done(name, data)
 		})
-		onChange.Release()
 		return nil
 	})
-	input.Call("addEventListener", "change", onChange, map[string]any{"once": true})
+	arm(input, "file", onChange)
 	input.Call("click")
 }
 
@@ -101,6 +102,8 @@ func (browser) OpenMany(done func([]chosen)) {
 	}
 	var onChange js.Func
 	onChange = js.FuncOf(func(this js.Value, _ []js.Value) any {
+		delete(pending, "files")
+		defer onChange.Release()
 		files := input.Get("files")
 		n := files.Length()
 		if n == 0 {
@@ -123,10 +126,9 @@ func (browser) OpenMany(done func([]chosen)) {
 				done(out)
 			})
 		}
-		onChange.Release()
 		return nil
 	})
-	input.Call("addEventListener", "change", onChange, map[string]any{"once": true})
+	arm(input, "files", onChange)
 	input.Call("click")
 }
 
@@ -140,6 +142,8 @@ func (browser) OpenCapped(max int, done func(name string, data []byte, tooLarge 
 	}
 	var onChange js.Func
 	onChange = js.FuncOf(func(this js.Value, _ []js.Value) any {
+		delete(pending, "p12")
+		defer onChange.Release()
 		files := input.Get("files")
 		if files.Length() == 0 {
 			return nil
@@ -149,31 +153,61 @@ func (browser) OpenCapped(max int, done func(name string, data []byte, tooLarge 
 		if file.Get("size").Float() > float64(max) {
 			input.Set("value", "")
 			done(name, nil, true)
-			onChange.Release()
 			return nil
 		}
 		read(file, func(data []byte) {
 			input.Set("value", "")
 			done(name, data, false)
 		})
-		onChange.Release()
 		return nil
 	})
-	input.Call("addEventListener", "change", onChange, map[string]any{"once": true})
+	arm(input, "p12", onChange)
 	input.Call("click")
 }
 
 // read pulls the bytes out of a File, which the browser only hands over
 // through a promise.
+//
+// ⛔ The JS copy is zeroed once the Go copy is made — a certificate must not
+// linger in a buffer the garbage collector frees without clearing — and both
+// callbacks are released, whichever way the promise went.
 func read(file js.Value, done func([]byte)) {
-	then := js.FuncOf(func(this js.Value, args []js.Value) any {
+	var then, fail js.Func
+	release := func() {
+		then.Release()
+		fail.Release()
+	}
+	then = js.FuncOf(func(this js.Value, args []js.Value) any {
+		defer release()
 		buf := js.Global().Get("Uint8Array").New(args[0])
 		data := make([]byte, buf.Length())
 		js.CopyBytesToGo(data, buf)
+		buf.Call("fill", 0)
 		done(data)
 		return nil
 	})
-	file.Call("arrayBuffer").Call("then", then)
+	fail = js.FuncOf(func(this js.Value, _ []js.Value) any {
+		defer release()
+		return nil
+	})
+	file.Call("arrayBuffer").Call("then", then, fail)
+}
+
+// pending holds the change listener each picker has armed and not yet seen
+// fire, by input id. A picker that is cancelled never fires its listener, so
+// without this each cancel left one behind and the next choice read the file
+// once per cancel.
+var pending = map[string]js.Func{}
+
+// arm makes f the one listener of input's next change, taking down any a
+// cancelled picker left.
+func arm(input js.Value, id string, f js.Func) {
+	if old, ok := pending[id]; ok {
+		input.Call("removeEventListener", "change", old)
+		old.Release()
+	}
+	pending[id] = f
+	input.Call("addEventListener", "change", f, map[string]any{"once": true})
 }
 
 // Save hands a file to the person as a download. The blob is made from a copy

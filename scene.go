@@ -416,6 +416,8 @@ func (s *state) open() {
 			data = out
 		}
 		s.doc, s.name, s.at, s.raw = d, name, 1, data
+		// ⛔ A certificate chosen for the last document does not wait for the next.
+		s.wipeSecrets()
 		s.note = ""
 		if converted != "" {
 			s.note = converted
