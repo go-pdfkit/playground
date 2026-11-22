@@ -19,6 +19,9 @@ import (
 type fakeHost struct {
 	name string
 	file []byte
+	// p12 and p12Name are what the certificate picker hands back.
+	p12     []byte
+	p12Name string
 	// many is what the multiple picker hands back, for the one verb that takes
 	// several files; nil means "the single file, once", so the tests written
 	// before it existed are unchanged.
@@ -75,6 +78,20 @@ func (h *fakeHost) OpenMany(done func([]chosen)) {
 		return // the person changed their mind, which is not an error
 	}
 	done([]chosen{{name: h.name, data: h.file}})
+}
+
+// OpenCapped is the certificate picker: p12 is what is chosen, and a file over
+// the cap is refused as the browser refuses it, before any bytes are handed over.
+func (h *fakeHost) OpenCapped(max int, done func(string, []byte, bool)) {
+	h.asked++
+	if h.p12 == nil {
+		return
+	}
+	if len(h.p12) > max {
+		done(h.p12Name, nil, true)
+		return
+	}
+	done(h.p12Name, h.p12, false)
 }
 
 func (h *fakeHost) Save(name string, data []byte) {

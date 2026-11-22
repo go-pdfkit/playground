@@ -215,6 +215,9 @@ type tools struct {
 
 	// The Protect group.
 	openPw, userPw, ownerPw *mvvm.Observable[string]
+	// The digital signature: the certificate's password, and the two claims a
+	// signature may carry. ⛔ p12Pw is never persisted nor shown.
+	p12Pw, p12Reason, p12Place *mvvm.Observable[string]
 	// allow is one Observable PER PERMISSION rather than an Observable of a
 	// map: a map is not comparable, so one Observable over the whole of it
 	// could not tell a change from a re-set, and every tick would repaint
@@ -296,6 +299,9 @@ func newTools() *tools {
 		openPw:      mvvm.NewObservable(""),
 		userPw:      mvvm.NewObservable(""),
 		ownerPw:     mvvm.NewObservable(""),
+		p12Pw:       mvvm.NewObservable(""),
+		p12Reason:   mvvm.NewObservable(""),
+		p12Place:    mvvm.NewObservable(""),
 		allow:       everythingAllowed(),
 		find:        mvvm.NewObservable(""),
 		comment:     mvvm.NewObservable(""),

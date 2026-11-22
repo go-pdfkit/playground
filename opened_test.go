@@ -388,6 +388,11 @@ func TestTheFileDialogOffersEveryShapeOpenAcceptsAndNothingElse(t *testing.T) {
 		t.Fatalf("web/index.html carries %d file inputs with an accept list, want the single one and the multiple one", len(lists))
 	}
 	for i, accept := range lists {
+		// The certificate picker is not Open's: it takes a .p12 or .pfx and
+		// nothing else, held to that by TestTheCertificatePickerOffersOnlyACertificate.
+		if accept == p12Accept {
+			continue
+		}
 		offered := map[string]bool{}
 		for _, item := range strings.Split(accept, ",") {
 			item = strings.TrimSpace(item)

@@ -107,6 +107,7 @@ var ribbonTabs = []struct {
 	}},
 	{groupSign, []verbGroup{
 		{"Signature", []string{"signPlace", "signUndo", "signClear"}},
+		{"Certificate", []string{"signCert", "signChoose"}},
 	}},
 	{groupFile, []verbGroup{
 		{"Clean", []string{"sanitize", "flatten", "dropAnnots"}},
@@ -488,6 +489,18 @@ var verbs = map[string]verb{
 		icon: "trash",
 		run:  (*state).signClear,
 		when: (*state).padHasInk,
+	},
+
+	"signChoose": {
+		label: "Choose a certificate", tip: "Choose a .p12 or .pfx file to sign with. It is read in this tab, never uploaded, and let go after each attempt to sign.",
+		icon: "folder",
+		run:  (*state).signChoose,
+		when: func(*state) bool { return true },
+	},
+	"signCert": {
+		label: "Sign and download", tip: "Sign the document as it stands with the chosen certificate and the password typed beside it, and download <name>_signed.pdf. Further edits give an unsigned document.",
+		icon: "shield-check", large: true,
+		run: (*state).signCert,
 	},
 
 	// File.
