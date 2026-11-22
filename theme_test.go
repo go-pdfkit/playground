@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/go-widgets/toolkit"
+	"github.com/go-widgets/toolkit/iconoir"
 )
 
 // paintsDark says whether a workbench is currently painting in the dark
@@ -129,7 +130,7 @@ func TestTheSwitchSaysWhichModeIsOnAndWhatTheNextPressDoes(t *testing.T) {
 	// cannot tell they have already pressed.
 	s := newState(surfaceW, surfaceH, &fakeHost{})
 	have := map[string]bool{}
-	for _, n := range toolkit.IconoirNames() {
+	for _, n := range iconoir.Names() {
 		have[n] = true
 	}
 	seen := map[string]bool{}

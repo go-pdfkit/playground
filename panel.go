@@ -113,11 +113,15 @@ const (
 	// deciding what a document's table of contents SAYS is asking about the
 	// document, and the rail beside them is already showing the answer.
 	groupContents = "Contents"
+	// SIGN IS A TAB BECAUSE A SIGNATURE NEEDS A BOX TO BE DRAWN IN, and the
+	// Stamp panel's rows are all one line tall. It places the same kind of thing
+	// the Stamp tab's picture does, beside the same two answers.
+	groupSign = "Sign"
 )
 
 // groupNames is the order they are offered in.
 var groupNames = []string{
-	groupPages, groupSheet, groupMarks, groupStamp, groupFile, groupContents, groupRedraw,
+	groupPages, groupSheet, groupMarks, groupStamp, groupSign, groupFile, groupContents, groupRedraw,
 	groupProtect, groupRead, groupMarkUp, groupHandOver,
 }
 
@@ -238,6 +242,10 @@ type tools struct {
 	// writable picture formats a page is handed over in.
 	reading *mvvm.Observable[string]
 	picture *mvvm.Observable[int]
+
+	// pad is the signature pad. It lives here, and not in the panel built for
+	// it, so what was drawn survives a visit to another tab.
+	pad *toolkit.InkPad
 }
 
 // newTools builds the panel's state with the defaults each control starts at.
@@ -324,6 +332,8 @@ func (s *state) body() toolkit.Widget {
 		rows = s.sheetGroup()
 	case groupStamp:
 		rows = s.stampGroup()
+	case groupSign:
+		rows = s.signGroup()
 	case groupMarks:
 		rows = s.marksGroup()
 	case groupProtect:

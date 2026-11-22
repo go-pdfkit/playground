@@ -55,8 +55,8 @@ event's is the tag.
 
 ## What is on the ribbon, and what is beside the page
 
-Twelve tabs: **Home** · **Pages** · **Sheet** · **Marks** · **Stamp** ·
-**File** · **Contents** · **Redraw** · **Protect** · **Read** · **Mark up** ·
+Thirteen tabs: **Home** · **Pages** · **Sheet** · **Marks** · **Stamp** ·
+**Sign** · **File** · **Contents** · **Redraw** · **Protect** · **Read** · **Mark up** ·
 **Hand over**. Five of them exist because a measurement forced a split rather
 than because a list was planned. Two different gates do the forcing: a crowded
 *strip* shrinks its controls to wordless 28-pixel icons, and a crowded *panel*
@@ -114,6 +114,10 @@ What each tab commands, and what its panel holds:
   place and a width — a signature, a logo, a seal. `{page}`, `{pages}` and
   `{n}` are filled in for any of them, which is what makes a stamp at *top
   centre* a header with a page number in it.
+- **Sign** — a box to **draw your signature** in with the mouse, a pen or a
+  finger, with **Undo a stroke** and **Clear the box**, and **Place my
+  signature** to put it on the pages named beside it, at the place and width
+  chosen. It is a picture of your hand, not a digital signature.
 - **File** — sanitize, flatten the annotations in, drop the annotations or what
   the file says about itself, pack it smaller, give it a title, an author, a
   subject, keywords, a creator and a producer, and **show** what it already says: every entry of its
@@ -1175,6 +1179,29 @@ the proportions, which is `Place`'s own promise, and the default is 144 points:
 two inches, a signature on a letter. The test measures the **rendered pixels**:
 144 wide and 72 tall for a 100×50 picture, with a second case at another width
 so that a hard-coded number anywhere in the chain fails.
+
+### The signature pad
+
+The **Sign** tab draws the picture itself. ⛔ It is a **raster** picture, and that
+is what the library offers rather than a preference: `ops.Place` takes picture
+bytes, and the only shapes `ops` writes are a line, a rectangle and an ellipse,
+so a hand-drawn curve as vector would be one line annotation per segment. The
+pad is `toolkit.InkPad` from go-widgets/toolkit v0.396.0, not drawn here: it
+rasterises the strokes onto a transparent ground up to 900 pixels across and
+**crops them to the ink**, so the width chosen is the signature's own and not
+that of a strip of empty paper.
+
+Everything is bounded by the toolkit, because the points come from a pointer:
+at most **64 strokes**, **8192 points** between them (points under a pixel
+apart are dropped), and a picture never larger than **900 × 600** pixels. A pad
+that hits a cap says why on the status line, once, and *Undo* or *Clear* makes
+room. Placing with nothing drawn is a refusal with a message, not an empty
+picture.
+
+The pad holds the pointer from the press to the release, and the scroll view
+around the panel hands it the drag. Tests drive it through the workbench's
+pointer routing and measure the **placed ink on the rendered page**: width as
+chosen, proportions as drawn.
 
 ## Redrawing the pages is a trade, and the workbench says so
 

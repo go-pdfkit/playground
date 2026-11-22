@@ -49,6 +49,13 @@ func paintPane(t *testing.T, s *state, rows []bookmark) ([]byte, int, int) {
 // that knew one background passed in CI and was wrong on the display the
 // person was actually looking at — the lesson a pixel test in this repo has
 // already cost once.
+//
+// ⛔ The row is found at the toolkit's own row pitch, which is the row height
+// raised to the touch target and to the glyph height (toolkit#606): sampling at
+// lineH steps read row 1 at another height of the slanted letter once the pitch
+// became 17.
+func rowPitch() int { return max(toolkit.TouchTarget(lineH), toolkit.GlyphHeight()) }
+
 func inkSpan(buf []byte, surfW, rowH, paneW, row int) (first, last int) {
 	first, last = -1, -1
 	y := row*rowH + rowH/2
@@ -272,11 +279,11 @@ func TestAContentsRowReadsFromTheLeftEdge(t *testing.T) {
 		{title: "A heading of the length headings are really written at", page: 3},
 	}
 	buf, w, h := paintPane(t, s, rows)
-	if h < 2*lineH {
-		t.Fatalf("the pane is %d tall and a row is %d", h, lineH)
+	if h < 2*rowPitch() {
+		t.Fatalf("the pane is %d tall and a row is %d", h, rowPitch())
 	}
-	short, _ := inkSpan(buf, s.w, lineH, w, 0)
-	long, _ := inkSpan(buf, s.w, lineH, w, 1)
+	short, _ := inkSpan(buf, s.w, rowPitch(), w, 0)
+	long, _ := inkSpan(buf, s.w, rowPitch(), w, 1)
 	if short < 0 || long < 0 {
 		t.Fatalf("a row drew no text at all: short %d, long %d", short, long)
 	}

@@ -314,6 +314,10 @@ type state struct {
 // newState builds the workbench.
 func newState(w, h int, h2 host) *state {
 	s := &state{w: w, h: h, theme: toolkit.DefaultLight(), host: h2, at: 1, tools: newTools()}
+	s.tools.pad = newSignPad(s.fail)
+	// Undo and Clear follow whether the pad holds ink: the pad says when that
+	// changes, and the verbs are asked again.
+	s.tools.pad.Empty().Subscribe(func(bool) { s.reconsider() })
 	s.pv = newViewer()
 	s.drawn = map[int]int{}
 	s.railWidth = mvvm.NewObservable(railLogicalW)

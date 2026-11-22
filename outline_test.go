@@ -9,6 +9,7 @@ import (
 	"github.com/go-pdfkit/ops"
 	"github.com/go-pdfkit/reader"
 	"github.com/go-widgets/toolkit"
+	"github.com/go-widgets/toolkit/iconoir"
 )
 
 // outlined builds a document of n pages whose outline is the given entries.
@@ -633,7 +634,7 @@ func TestTheSwitchIsOfferedForAnyOpenDocument(t *testing.T) {
 		t.Errorf("both views carry the tooltip %q", tip)
 	}
 	have := map[string]bool{}
-	for _, n := range toolkit.IconoirNames() {
+	for _, n := range iconoir.Names() {
 		have[n] = true
 	}
 	for _, n := range []string{"list", "media-image-list"} {

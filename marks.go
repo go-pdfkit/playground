@@ -220,20 +220,25 @@ func (s *state) placePicture() {
 		s.fail("open a document first")
 		return
 	}
+	s.host.Open(func(name string, data []byte) { s.drawPlaced("drew", name, data) })
+}
+
+// drawPlaced puts a picture on the marked pages at the chosen place and width,
+// and says so with the verb it is given. The uploaded picture and the drawn
+// signature are both this: a picture, placed the same way.
+func (s *state) drawPlaced(verb, name string, data []byte) {
 	spec := s.marked()
 	at := s.tools.at.Get()
 	if at < 0 || at >= len(places) {
 		at = 0
 	}
 	where, wide := places[at], float64(s.tools.wide.Get())
-	s.host.Open(func(name string, data []byte) {
-		s.changeSaying(fmt.Sprintf("drew %s on %s, %s", name, spec, where.name),
-			func(d *ops.Doc) error {
-				return d.Place(spec, ops.Placement{
-					Data:     data,
-					Position: where.where,
-					Width:    wide,
-				})
+	s.changeSaying(fmt.Sprintf("%s %s on %s, %s", verb, name, spec, where.name),
+		func(d *ops.Doc) error {
+			return d.Place(spec, ops.Placement{
+				Data:     data,
+				Position: where.where,
+				Width:    wide,
 			})
-	})
+		})
 }
