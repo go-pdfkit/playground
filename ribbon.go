@@ -481,13 +481,13 @@ var verbs = map[string]verb{
 		label: "Undo a stroke", tip: "Take back the last stroke drawn in the box.",
 		icon: "undo",
 		run:  (*state).signUndo,
-		when: func(*state) bool { return true },
+		when: (*state).padHasInk,
 	},
 	"signClear": {
 		label: "Clear the box", tip: "Wipe the box, to start the signature again.",
 		icon: "trash",
 		run:  (*state).signClear,
-		when: func(*state) bool { return true },
+		when: (*state).padHasInk,
 	},
 
 	// File.

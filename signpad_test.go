@@ -54,17 +54,101 @@ func scribble(t *testing.T, s *state) {
 }
 
 // rendered is page 1 of the saved document, at one pixel to the point.
-func rendered(t *testing.T, s *state) *raster.Image {
+func rendered(t *testing.T, s *state) *raster.Image { return renderedPage(t, s, 1) }
+
+// renderedPage is page n of the saved document, at one pixel to the point.
+func renderedPage(t *testing.T, s *state, n int) *raster.Image {
 	t.Helper()
 	src, msg := s.reopen()
 	if msg != "" {
 		t.Fatal(msg)
 	}
-	img, err := render.Page(src, 1, render.Options{Scale: 1})
+	img, err := render.Page(src, n, render.Options{Scale: 1})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return img
+}
+
+// penCentre is where the middle of the signature ink is on a page, as a share
+// of the page's width and height, with the ink's own width and height.
+func penCentre(img *raster.Image) (cx, cy float64, wide, tall int) {
+	minX, maxX, minY, maxY := img.W, -1, img.H, -1
+	for y := 0; y < img.H; y++ {
+		for x := 0; x < img.W; x++ {
+			i := img.PixOffset(x, y)
+			if int(img.Pix[i+2])-int(img.Pix[i]) < 40 || img.Pix[i] > 120 {
+				continue
+			}
+			minX, maxX = min(minX, x), max(maxX, x)
+			minY, maxY = min(minY, y), max(maxY, y)
+		}
+	}
+	if maxX < 0 {
+		return 0, 0, 0, 0
+	}
+	return float64(minX+maxX) / 2 / float64(img.W), float64(minY+maxY) / 2 / float64(img.H),
+		maxX - minX + 1, maxY - minY + 1
+}
+
+func TestASignatureLandsOnTheNamedPageOnlyAndWhereItWasAskedFor(t *testing.T) {
+	for _, c := range []struct {
+		place         string
+		right, bottom bool
+	}{
+		{"bottom right", true, true},
+		{"top left", false, false},
+	} {
+		t.Run(c.place, func(t *testing.T) {
+			s, _ := opened(t, 3)
+			openGroup(t, s, groupSign)
+			at := -1
+			for i, n := range placeNames() {
+				if n == c.place {
+					at = i
+				}
+			}
+			if at < 0 {
+				t.Fatalf("no place is called %q", c.place)
+			}
+			s.tools.at.Set(at)
+			s.tools.markSpec.Set("2")
+			s.tools.wide.Set(100)
+			scribble(t, s)
+			pressVerb(t, s, "signPlace")
+			for _, n := range []int{1, 3} {
+				if _, _, w, _ := penCentre(renderedPage(t, s, n)); w != 0 {
+					t.Errorf("page %d, which was not named, has signature ink %d wide", n, w)
+				}
+			}
+			cx, cy, wide, tall := penCentre(renderedPage(t, s, 2))
+			if wide == 0 {
+				t.Fatal("page 2 has no signature ink")
+			}
+			if wide < 94 || wide > 101 || tall < 36 || tall > 44 {
+				t.Errorf("the signature is %d by %d, not about 100 by 40 (the 0.4 it was drawn at)", wide, tall)
+			}
+			if (cx > 0.5) != c.right || (cy > 0.5) != c.bottom {
+				t.Errorf("%s: the ink is centred at %.2f, %.2f of the page", c.place, cx, cy)
+			}
+		})
+	}
+}
+
+func TestAnEmptyWhichPagesPlacesTheSignatureOnEveryPageAndSaysSo(t *testing.T) {
+	s, _ := opened(t, 3)
+	openGroup(t, s, groupSign)
+	s.tools.markSpec.Set("")
+	scribble(t, s)
+	pressVerb(t, s, "signPlace")
+	if !strings.Contains(s.note, "on all") {
+		t.Errorf("the status line says %q, not that it went on all pages", s.note)
+	}
+	for n := 1; n <= 3; n++ {
+		if _, _, w, _ := penCentre(renderedPage(t, s, n)); w == 0 {
+			t.Errorf("page %d has no signature ink", n)
+		}
+	}
 }
 
 func TestADrawnSignatureLandsOnThePageAtTheWidthAskedForAndKeepsItsShape(t *testing.T) {
@@ -205,9 +289,32 @@ func TestUndoAndClearWorkWithNoDocumentOpen(t *testing.T) {
 	if !s.tools.pad.Empty().Get() {
 		t.Error("undo did not take the stroke back")
 	}
-	for _, id := range []string{"signUndo", "signClear"} {
-		if !verbs[id].when(s) {
-			t.Errorf("%s is greyed with no document open", id)
+}
+
+func TestUndoAndClearAreEnabledExactlyWhilePadHoldsInk(t *testing.T) {
+	// ⛔ Bound to the pad's Empty observable, so a stroke enables them without
+	// any refresh of the document: with a document open and with none.
+	for _, withDoc := range []bool{true, false} {
+		var s *state
+		if withDoc {
+			s, _ = opened(t, 1)
+		} else {
+			s = newState(surfaceW, surfaceH, &fakeHost{})
+		}
+		on := func() (bool, bool) {
+			return s.acts["signUndo"].Enabled.Get(), s.acts["signClear"].Enabled.Get()
+		}
+		if u, c := on(); u || c {
+			t.Errorf("doc %v: on an empty pad Undo is %v and Clear is %v", withDoc, u, c)
+		}
+		s.tools.pad.OnEvent(toolkit.Event{Kind: toolkit.EventClick, X: 5, Y: 5})
+		s.tools.pad.OnEvent(toolkit.Event{Kind: toolkit.EventMouseUp})
+		if u, c := on(); !u || !c {
+			t.Errorf("doc %v: after a stroke Undo is %v and Clear is %v", withDoc, u, c)
+		}
+		s.signUndo()
+		if u, c := on(); u || c {
+			t.Errorf("doc %v: after undoing it Undo is %v and Clear is %v", withDoc, u, c)
 		}
 	}
 }

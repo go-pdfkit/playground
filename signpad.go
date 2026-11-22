@@ -76,6 +76,11 @@ func (s *state) signPlace() {
 	s.drawPlaced("signed", "your signature", data)
 }
 
+// padHasInk is the rule for Undo and Clear: there is something to take back.
+// It needs no document, because the pad is a drawing board before it is
+// anything else; the pad's own Empty observable says when it changes.
+func (s *state) padHasInk() bool { return !s.tools.pad.Empty().Get() }
+
 // signUndo takes back the last stroke.
 func (s *state) signUndo() {
 	if !s.tools.pad.Undo() {
