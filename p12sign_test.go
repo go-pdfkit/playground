@@ -304,3 +304,44 @@ func TestTheCertificatePickerOffersOnlyACertificate(t *testing.T) {
 		t.Error("web/index.html has no certificate picker with id p12 offering exactly a .p12 or .pfx")
 	}
 }
+
+// TestSecretsDoNotOutliveTheSignTabOrTheDocument: a certificate and its
+// password are let go when another document is opened and when the Sign tab is
+// left, with no attempt to sign having been made.
+func TestSecretsDoNotOutliveTheSignTabOrTheDocument(t *testing.T) {
+	t.Run("another document is opened", func(t *testing.T) {
+		s, h := certified(t, "ec.p12")
+		held := s.p12
+		s.tools.p12Pw.Set(p12Fixture)
+		h.file = samplePDF(t, 1)
+		s.open()
+		if s.p12 != nil || s.p12Name != "" || s.tools.p12Pw.Get() != "" {
+			t.Error("the certificate or the password survived opening a document")
+		}
+		if !bytes.Equal(held, make([]byte, len(held))) {
+			t.Error("the certificate bytes were not overwritten")
+		}
+	})
+	t.Run("the Sign tab is left", func(t *testing.T) {
+		s, _ := certified(t, "ec.p12")
+		held := s.p12
+		s.tools.p12Pw.Set(p12Fixture)
+		openGroup(t, s, groupSign)
+		openGroup(t, s, groupFile)
+		if s.p12 != nil || s.tools.p12Pw.Get() != "" {
+			t.Error("the certificate or the password survived leaving the Sign tab")
+		}
+		if !bytes.Equal(held, make([]byte, len(held))) {
+			t.Error("the certificate bytes were not overwritten")
+		}
+	})
+	t.Run("other tabs keep nothing to wipe and the Sign tab keeps its secrets", func(t *testing.T) {
+		s, _ := certified(t, "ec.p12")
+		s.tools.p12Pw.Set(p12Fixture)
+		openGroup(t, s, groupSign)
+		s.followTab(tabIndexOf(t, groupSign))
+		if s.p12 == nil || s.tools.p12Pw.Get() == "" {
+			t.Error("staying on the Sign tab wiped the secrets")
+		}
+	})
+}

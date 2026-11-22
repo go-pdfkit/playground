@@ -970,6 +970,10 @@ func tabGroup(i int) string {
 // the page, and going back to Home puts it away -- there is nothing left to
 // switch a panel on with, and nothing that could leave the two disagreeing.
 func (s *state) followTab(i int) {
+	// ⛔ A certificate and its password are held only while the Sign tab is open.
+	if next := tabGroup(i); s.tools.open == groupSign && next != groupSign {
+		s.wipeSecrets()
+	}
 	s.tools.open = tabGroup(i)
 	name := s.tools.open
 	if name != "" {
