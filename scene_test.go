@@ -11,6 +11,7 @@ import (
 	"github.com/go-pdfkit/reader"
 	"github.com/go-pdfkit/render"
 	"github.com/go-widgets/toolkit"
+	"github.com/go-widgets/toolkit/iconoir"
 )
 
 // fakeHost stands in for the browser: it hands over a document that was made
@@ -781,7 +782,7 @@ func TestEveryMarkOnTheRibbonIsOneThePackHas(t *testing.T) {
 	// control is an icon ABOVE its text, so a verb whose mark is missing is a
 	// verb with a hole where a third of it should be.
 	have := map[string]bool{}
-	for _, n := range toolkit.IconoirNames() {
+	for _, n := range iconoir.Names() {
 		have[n] = true
 	}
 	if len(have) < 100 {

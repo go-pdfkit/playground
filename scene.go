@@ -234,8 +234,7 @@ type state struct {
 	// pressing says a button is down, which is what turns a pointer move into
 	// a DRAG. The browser reports a move without saying which buttons are
 	// held, so it has to be remembered between the press and the release.
-	pressing bool
-	// overRibbon says the pointer is on the command band, which is what runs
+	pressing bool // overRibbon says the pointer is on the command band, which is what runs
 	// the ribbon's own clock: it lights a control under the pointer and counts
 	// out the delay before that control's tooltip.
 	overRibbon bool
@@ -314,6 +313,7 @@ type state struct {
 // newState builds the workbench.
 func newState(w, h int, h2 host) *state {
 	s := &state{w: w, h: h, theme: toolkit.DefaultLight(), host: h2, at: 1, tools: newTools()}
+	s.tools.pad = newSignPad(s.fail)
 	s.pv = newViewer()
 	s.drawn = map[int]int{}
 	s.railWidth = mvvm.NewObservable(railLogicalW)

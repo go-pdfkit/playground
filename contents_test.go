@@ -280,7 +280,10 @@ func TestAContentsRowReadsFromTheLeftEdge(t *testing.T) {
 	if short < 0 || long < 0 {
 		t.Fatalf("a row drew no text at all: short %d, long %d", short, long)
 	}
-	if short != long {
+	// One pixel of slack: the first letter of a row is hinted to its neighbours,
+	// and go-opentype v0.20.0 moves the faint edge of "A" by a pixel between a
+	// one-letter row and a long one. A centred row is tens of pixels off.
+	if d := short - long; d < -1 || d > 1 {
 		t.Errorf("a one-letter row starts at column %d and a long one at %d, "+
 			"so the rows are not aligned on their left edge", short, long)
 	}

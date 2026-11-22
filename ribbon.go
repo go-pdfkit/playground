@@ -24,6 +24,7 @@ import (
 	"github.com/go-widgets/mvvm"
 	"github.com/go-widgets/painter"
 	"github.com/go-widgets/toolkit"
+	"github.com/go-widgets/toolkit/iconoir"
 )
 
 // A verb is one command: what it is called, what it does, when it may run, and
@@ -103,6 +104,9 @@ var ribbonTabs = []struct {
 	{groupStamp, []verbGroup{
 		{"A line of text", []string{"stamp", "headFoot"}},
 		{"Picture", []string{"placePicture"}},
+	}},
+	{groupSign, []verbGroup{
+		{"Signature", []string{"signPlace", "signUndo", "signClear"}},
 	}},
 	{groupFile, []verbGroup{
 		{"Clean", []string{"sanitize", "flatten", "dropAnnots"}},
@@ -467,6 +471,25 @@ var verbs = map[string]verb{
 		run: (*state).placePicture,
 	},
 
+	// Sign.
+	"signPlace": {
+		label: "Place my signature", tip: "Draw the signature in the box beside, then place it on the pages named there, at the place and width chosen — a picture of your hand, not a digital signature.",
+		icon: "edit-pencil", large: true,
+		run: (*state).signPlace,
+	},
+	"signUndo": {
+		label: "Undo a stroke", tip: "Take back the last stroke drawn in the box.",
+		icon: "undo",
+		run:  (*state).signUndo,
+		when: func(*state) bool { return true },
+	},
+	"signClear": {
+		label: "Clear the box", tip: "Wipe the box, to start the signature again.",
+		icon: "trash",
+		run:  (*state).signClear,
+		when: func(*state) bool { return true },
+	},
+
 	// File.
 	"sanitize": {
 		label: "Sanitize — drop what runs", tip: "Strip whatever in the file runs rather than shows.",
@@ -819,10 +842,8 @@ func (s *state) contentsControl() *toolkit.RibbonControl {
 		// One label, as with the theme switch: Ribbon.ControlRect finds a
 		// control by it, so a label that moved with the state would move the
 		// control out from under the press that moved it.
-		Label: "Contents",
-		Icon: func(p painter.Painter, r toolkit.Rect, ink toolkit.RGBA) {
-			toolkit.DrawIconoir(p, r, s.contentsIcon(), ink)
-		},
+		Label:   "Contents",
+		Icon:    iconoirLive(s.contentsIcon),
 		Run:     s.toggleContents,
 		Enabled: mvvm.NewObservable(false),
 		Visible: mvvm.NewObservable(true),
@@ -858,10 +879,8 @@ func (s *state) themeControl() *toolkit.RibbonControl {
 		// under every test and every browser check that reaches for it — and it
 		// would be the press itself that moved it. The mark carries the state
 		// instead, and the tooltip says it in words.
-		Label: "Theme",
-		Icon: func(p painter.Painter, r toolkit.Rect, ink toolkit.RGBA) {
-			toolkit.DrawIconoir(p, r, s.themeMode.icon(), ink)
-		},
+		Label:   "Theme",
+		Icon:    iconoirLive(func() string { return s.themeMode.icon() }),
 		Run:     s.cycleTheme,
 		Enabled: mvvm.NewObservable(true),
 		Visible: mvvm.NewObservable(true),
@@ -907,13 +926,17 @@ func (s *state) mayRun(when func(*state) bool) bool {
 
 // iconoirGlyph draws one icon from the pack at whatever box it is given.
 //
-// ⛔ Through the toolkit, from a pack, never drawn here. toolkit.DrawIconoir
+// ⛔ Through the toolkit, from a pack, never drawn here. toolkit/iconoir.Draw
 // rasterises one of the SVGs that go-icons/iconoir embeds, recoloured to the
 // ink the control is using. A glyph outlined by hand would be a per-app
 // duplicate of a layer that exists to be shared.
-func iconoirGlyph(name string) toolkit.IconFunc {
+func iconoirGlyph(name string) toolkit.IconFunc { return iconoir.Drawer(name) }
+
+// iconoirLive is the same, for a glyph whose name is read each time it is drawn,
+// because it follows a state (the theme mode, whether the rail is open).
+func iconoirLive(name func() string) toolkit.IconFunc {
 	return func(p painter.Painter, r toolkit.Rect, ink toolkit.RGBA) {
-		toolkit.DrawIconoir(p, r, name, ink)
+		iconoir.Drawer(name())(p, r, ink)
 	}
 }
 
