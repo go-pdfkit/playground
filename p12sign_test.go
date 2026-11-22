@@ -345,3 +345,13 @@ func TestSecretsDoNotOutliveTheSignTabOrTheDocument(t *testing.T) {
 		}
 	})
 }
+
+// TestACertificateOfExactlyTheCapIsTaken: the bound is on what is LARGER than
+// 8 MiB, so a file of exactly that size is the biggest one the state takes.
+func TestACertificateOfExactlyTheCapIsTaken(t *testing.T) {
+	s := newState(surfaceW, surfaceH, careless{&fakeHost{p12: make([]byte, ops.MaxPKCS12Size), p12Name: "edge.p12"}})
+	s.signChoose()
+	if s.p12 == nil || len(s.p12) != ops.MaxPKCS12Size || strings.Contains(s.note, "too large") {
+		t.Errorf("a file of exactly the cap was refused: %q", s.note)
+	}
+}
