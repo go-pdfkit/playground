@@ -355,3 +355,59 @@ func TestACertificateOfExactlyTheCapIsTaken(t *testing.T) {
 		t.Errorf("a file of exactly the cap was refused: %q", s.note)
 	}
 }
+
+// inFlight is a host whose certificate read has not finished: the callback is
+// kept, and the test calls it after the wipe, as a browser does when the read
+// ends late.
+type inFlight struct {
+	*fakeHost
+	finish func()
+}
+
+func (f *inFlight) OpenCapped(_ int, done func(string, []byte, bool)) {
+	data, name := f.p12, f.p12Name
+	f.finish = func() { done(name, data, false) }
+}
+
+// TestAReadInFlightDuringAWipeDoesNotHoldTheCertificateAgain: a certificate read
+// that ends AFTER a wipe is dropped and zeroed, whichever wipe it was; a read
+// with no wipe in between is still taken.
+func TestAReadInFlightDuringAWipeDoesNotHoldTheCertificateAgain(t *testing.T) {
+	wipes := map[string]func(s *state, h *fakeHost){
+		"another document is opened": func(s *state, h *fakeHost) { h.file = samplePDF(t, 1); s.open() },
+		"the Sign tab is left": func(s *state, _ *fakeHost) {
+			openGroup(t, s, groupSign)
+			openGroup(t, s, groupFile)
+		},
+		"an attempt to sign ends": func(s *state, _ *fakeHost) { s.signCert() },
+	}
+	for name, wipe := range wipes {
+		t.Run(name, func(t *testing.T) {
+			s, h := opened(t, 1)
+			data := p12Bytes(t, "ec.p12")
+			f := &inFlight{fakeHost: h}
+			f.p12, f.p12Name = data, "late.p12"
+			s.host = f
+			s.signChoose()
+			wipe(s, h)
+			f.finish()
+			if s.p12 != nil || s.p12Name != "" {
+				t.Error("the certificate was held again after the wipe")
+			}
+			if !bytes.Equal(data, make([]byte, len(data))) {
+				t.Error("the late bytes were not zeroed")
+			}
+		})
+	}
+	t.Run("no wipe in between", func(t *testing.T) {
+		s, h := opened(t, 1)
+		f := &inFlight{fakeHost: h}
+		f.p12, f.p12Name = p12Bytes(t, "ec.p12"), "ok.p12"
+		s.host = f
+		s.signChoose()
+		f.finish()
+		if s.p12 == nil || s.p12Name != "ok.p12" {
+			t.Errorf("a read with no wipe in between was dropped: %q", s.note)
+		}
+	})
+}

@@ -198,6 +198,10 @@ type state struct {
 	// written anywhere, never read by any other verb.
 	p12     []byte
 	p12Name string
+	// p12Gen counts the wipes of the certificate. A read of the file that is
+	// still in flight when a wipe happens finds the count changed and drops what
+	// it was given instead of holding the certificate again.
+	p12Gen uint64
 	// form is what the document asks to be filled in, when it asks anything,
 	// and showingForm says the panel is up instead of the page.
 	form        *filling
