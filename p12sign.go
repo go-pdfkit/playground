@@ -44,7 +44,14 @@ func (s *state) signGroupCert(box *column) {
 // file never becomes a huge buffer in the page's memory; the length is checked
 // again here because a host is only as careful as its author.
 func (s *state) signChoose() {
+	gen := s.p12Gen
 	s.host.OpenCapped(ops.MaxPKCS12Size, func(name string, data []byte, tooLarge bool) {
+		// ⛔ A wipe (another document, another tab, an attempt to sign) happened
+		// while the file was being read: the certificate must not be held again.
+		if gen != s.p12Gen {
+			clear(data)
+			return
+		}
 		s.wipeCert()
 		if tooLarge || len(data) > ops.MaxPKCS12Size {
 			clear(data)
@@ -94,6 +101,7 @@ func (s *state) signCert() {
 // wipeCert lets go of the certificate file: its bytes are overwritten, then
 // dropped.
 func (s *state) wipeCert() {
+	s.p12Gen++
 	clear(s.p12)
 	s.p12, s.p12Name = nil, ""
 }
