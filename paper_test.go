@@ -4,8 +4,69 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-pdfkit/extract"
 	"github.com/go-pdfkit/reader"
 )
+
+// runsOn counts the text runs a reader would find on the first page of what the
+// workbench would save.
+func runsOn(t *testing.T, s *state) int {
+	t.Helper()
+	out, err := s.doc.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := reader.Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runs, err := extract.Runs(doc, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return len(runs)
+}
+
+// ⛔ WRITING THE TEXT AS PATHS LEAVES NOTHING TO SELECT. The control is the
+// count of runs before: a page with no text at the start would pass this for
+// the wrong reason.
+func TestWritingTheTextAsPathsLeavesNoTextToRead(t *testing.T) {
+	s := shown(t, perGlyphPDF(t))
+	if runsOn(t, s) == 0 {
+		t.Fatal("the sample page has no text to begin with")
+	}
+	s.tools.spec.Set("all")
+	s.outlineText()
+	if !strings.Contains(s.note, "as paths") {
+		t.Fatalf("the status line says %q", s.note)
+	}
+	if got := runsOn(t, s); got != 0 {
+		t.Errorf("%d text run(s) are left after writing the text as paths", got)
+	}
+}
+
+// A range that names no page is a refusal that keeps the document, and the
+// reason is on the status line rather than nothing at all.
+func TestOutliningAPageThatIsNotThereSaysWhy(t *testing.T) {
+	s := shown(t, perGlyphPDF(t))
+	before := runsOn(t, s)
+	s.tools.spec.Set("9")
+	s.outlineText()
+	if strings.Contains(s.note, "as paths") {
+		t.Errorf("a page that does not exist was reported outlined: %q", s.note)
+	}
+	if got := runsOn(t, s); got != before {
+		t.Errorf("a refused outline changed the text: %d runs, was %d", got, before)
+	}
+}
+
+func TestOutliningNeedsADocument(t *testing.T) {
+	s := newState(surfaceW, surfaceH, &fakeHost{})
+	s.outlineText()
+	if !strings.Contains(s.note, "open a document first") {
+		t.Errorf("the status line says %q", s.note)
+	}
+}
 
 // ⛔ THE PAPER IS NOT THE CROP BOX, and this is the control for it. Cropping
 // cuts a page down to part of itself; setting the paper says which sheet it is
