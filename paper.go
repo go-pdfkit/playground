@@ -81,6 +81,32 @@ func (s *state) setPaper() {
 	})
 }
 
+// outlineText writes the text of the pages the range names as vector paths, so
+// they look as they did and hold no font (ops v0.43.0, `pdfops outlinetext`).
+//
+// ⛔⛔ IT SAYS WHAT IT REFUSED AND WHAT IT COULD NOT REACH. A bound past which
+// the result is not the size of the input, and a font written vertically, are
+// REFUSALS in ops (ErrOutlineTooLarge, ErrOutlineVertical): the document is left
+// as it was and the status line carries ops' own sentence, because "nothing
+// happened" with no reason is the answer a reader cannot act on. And the text of
+// annotations is not reached; OutlineSkipped counts it, and the count is passed
+// on for the reason recolourText passes on UnreachedText.
+//
+// ⛔ The text becomes pictures of letters: it can no longer be selected,
+// searched or read out, which is the point and is said on the control.
+func (s *state) outlineText() {
+	spec := s.where()
+	if !s.changeSaying(fmt.Sprintf("wrote the text of %s as paths", spec),
+		func(d *ops.Doc) error { return d.OutlineText(spec) }) {
+		return
+	}
+	if left := s.doc.OutlineSkipped(); left > 0 {
+		s.note += fmt.Sprintf(" — %d annotation(s) still hold text in a font, "+
+			"which is not reached", left)
+		s.refresh()
+	}
+}
+
 // recolourText paints the text of the pages the range names in one colour.
 //
 // ⛔⛔ AND IT SAYS WHAT IT COULD NOT REACH. ops.Doc.RecolourText only reaches

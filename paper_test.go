@@ -4,8 +4,69 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-pdfkit/extract"
 	"github.com/go-pdfkit/reader"
 )
+
+// runsOn counts the text runs a reader would find on the first page of what the
+// workbench would save.
+func runsOn(t *testing.T, s *state) int {
+	t.Helper()
+	out, err := s.doc.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := reader.Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runs, err := extract.Runs(doc, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return len(runs)
+}
+
+// ⛔ WRITING THE TEXT AS PATHS LEAVES NOTHING TO SELECT. The control is the
+// count of runs before: a page with no text at the start would pass this for
+// the wrong reason.
+func TestWritingTheTextAsPathsLeavesNoTextToRead(t *testing.T) {
+	s := shown(t, perGlyphPDF(t))
+	if runsOn(t, s) == 0 {
+		t.Fatal("the sample page has no text to begin with")
+	}
+	s.tools.spec.Set("all")
+	s.outlineText()
+	if !strings.Contains(s.note, "as paths") {
+		t.Fatalf("the status line says %q", s.note)
+	}
+	if got := runsOn(t, s); got != 0 {
+		t.Errorf("%d text run(s) are left after writing the text as paths", got)
+	}
+}
+
+// A range that names no page is a refusal that keeps the document, and the
+// reason is on the status line rather than nothing at all.
+func TestOutliningAPageThatIsNotThereSaysWhy(t *testing.T) {
+	s := shown(t, perGlyphPDF(t))
+	before := runsOn(t, s)
+	s.tools.spec.Set("9")
+	s.outlineText()
+	if strings.Contains(s.note, "as paths") {
+		t.Errorf("a page that does not exist was reported outlined: %q", s.note)
+	}
+	if got := runsOn(t, s); got != before {
+		t.Errorf("a refused outline changed the text: %d runs, was %d", got, before)
+	}
+}
+
+func TestOutliningNeedsADocument(t *testing.T) {
+	s := newState(surfaceW, surfaceH, &fakeHost{})
+	s.outlineText()
+	if !strings.Contains(s.note, "open a document first") {
+		t.Errorf("the status line says %q", s.note)
+	}
+}
 
 // ⛔ THE PAPER IS NOT THE CROP BOX, and this is the control for it. Cropping
 // cuts a page down to part of itself; setting the paper says which sheet it is
@@ -160,6 +221,64 @@ func TestThePaperAndInkVerbsNeedADocument(t *testing.T) {
 			}
 		})
 	}
+}
+
+// ⛔ THE TEXT OF AN ANNOTATION IS NOT REACHED, and the status line says how
+// many there were: a page that came back with its stamp still in a font and
+// nothing said would be the outcome worse than a refusal.
+func TestOutliningSaysHowManyAnnotationsItCouldNotReach(t *testing.T) {
+	s := shown(t, textInAnAnnotationPDF(t))
+	s.tools.spec.Set("all")
+	s.outlineText()
+	if !strings.Contains(s.note, "as paths") {
+		t.Fatalf("the status line says %q", s.note)
+	}
+	if !strings.Contains(s.note, "1 annotation(s) still hold text") {
+		t.Errorf("the annotation was not reported: %q", s.note)
+	}
+	// And a page with none says nothing of the kind.
+	p := shown(t, perGlyphPDF(t))
+	p.tools.spec.Set("all")
+	p.outlineText()
+	if strings.Contains(p.note, "annotation") {
+		t.Errorf("a page with no annotation reported one: %q", p.note)
+	}
+}
+
+// textInAnAnnotationPDF is one page with a line of text and a stamp whose
+// appearance is drawn in a font, which ops counts and does not outline.
+func textInAnAnnotationPDF(t *testing.T) []byte {
+	t.Helper()
+	w := reader.NewWriter("1.7")
+	pagesRef := w.Reserve()
+	font := w.Add(reader.Dict{"Type": reader.Name("Font"),
+		"Subtype": reader.Name("Type1"), "BaseFont": reader.Name("Helvetica")})
+	box := reader.Array{reader.Integer(0), reader.Integer(0),
+		reader.Integer(90), reader.Integer(20)}
+	ap := w.Add(&reader.Stream{Dict: reader.Dict{"Subtype": reader.Name("Form"),
+		"BBox":      box,
+		"Resources": reader.Dict{"Font": reader.Dict{"F": font}}},
+		Raw: []byte("BT /F 9 Tf 2 5 Td (approved) Tj ET")})
+	stamp := w.Add(reader.Dict{"Type": reader.Name("Annot"),
+		"Subtype": reader.Name("Stamp"), "Rect": box,
+		"AP": reader.Dict{"N": ap}})
+	page := w.Add(reader.Dict{
+		"Type": reader.Name("Page"), "Parent": pagesRef,
+		"Contents": w.Add(&reader.Stream{Dict: reader.Dict{},
+			Raw: []byte("BT /F1 10 Tf 20 300 Td (on the page) Tj ET")}),
+		"Resources": reader.Dict{"Font": reader.Dict{"F1": font}},
+		"Annots":    reader.Array{stamp},
+	})
+	w.Put(pagesRef, reader.Dict{"Type": reader.Name("Pages"),
+		"Kids": reader.Array{page}, "Count": reader.Integer(1),
+		"MediaBox": reader.Array{reader.Integer(0), reader.Integer(0),
+			reader.Integer(300), reader.Integer(400)}})
+	root := w.Add(reader.Dict{"Type": reader.Name("Catalog"), "Pages": pagesRef})
+	out, err := w.Finish(reader.Dict{"Root": root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
 }
 
 // textInAFormPDF draws one line on the page itself and one through a Form

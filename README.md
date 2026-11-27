@@ -108,7 +108,12 @@ What each tab commands, and what its panel holds:
   another file over it, mix another file's pages in one at a time.
 - **Marks** — what is written across every page by a rule: a watermark, page
   numbers in a shape you choose, a Bates number padded and started where you
-  say.
+  say, and **the text written as paths** (`Write the text as paths`, on
+  [ops v0.43.1](https://github.com/go-pdfkit/ops/releases/tag/v0.43.1)): the
+  pages the range names look as they did and hold no font, so their text can no
+  longer be selected, searched or read out. It refuses a document past ops'
+  bounds and a font written vertically, saying which, and it says how many
+  annotations it could not reach — their text is left as it was.
 - **Stamp** — what is put where you *choose*: a line of text in one of nine
   places, a **header and a footer together** in one press, and a picture at a
   place and a width — a signature, a logo, a seal. `{page}`, `{pages}` and
@@ -1295,6 +1300,10 @@ library knows and a button would swallow:
   change pages nobody named; the library leaves those alone and counts them,
   and the status line passes the count on. A document that came back looking
   unchanged with nothing said would be worse than a refusal.
+- writing the text as paths is **a refusal where it cannot be exact**: past
+  ops' bounds, or in a font written vertically, the document is left as it
+  was and the status line carries ops' own sentence; and the text of an
+  annotation is not reached, so the count of those goes on the status line too.
 
 Two things the first batch had to get right, and both are the kind of thing a
 ribbon gets wrong quietly:

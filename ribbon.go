@@ -89,6 +89,9 @@ var ribbonTabs = []struct {
 	{groupMarks, []verbGroup{
 		{"Watermark", []string{"watermark"}},
 		{"Numbers", []string{"number", "bates"}},
+		// ⛔ ON THIS TAB BECAUSE IT TAKES THE SAME RANGE and the Pages tab had no
+		// room left: a tenth control there took five others to wordless icons.
+		{"Fonts", []string{"outlineText"}},
 	}},
 	// ⛔⛔ THE STAMP, THE HEADER AND FOOTER AND THE PICTURE MOVED OFF MARKS
 	// because its PANEL ran out of room: adding the two boxes a header and a
@@ -392,6 +395,11 @@ var verbs = map[string]verb{
 		label: "Paint the text", tip: "Paint the text of the pages the range names in the colour chosen beside it, leaving everything else alone. It says how much it could not reach, because text inside a form is shared with other pages.",
 		icon: "fill-color", large: true,
 		run: (*state).recolourText,
+	},
+	"outlineText": {
+		label: "Write the text as paths", tip: "Turn the text of the pages the range names into vector paths, so they look as they did and need no font. ⚠ Their text can no longer be selected, searched or read out. It refuses a document past its bounds and a font written vertically, and says how many annotations it could not reach.",
+		icon: "text", large: true,
+		run: (*state).outlineText,
 	},
 	// ⛔⛔ EVERY VERB IN THIS GROUP REPLACES THE PAGES WITH PICTURES OF THEM,
 	// and every tip says so. Turning light into dark is a pixel operation and
